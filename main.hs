@@ -1,28 +1,35 @@
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
+import Data.Word
+import Debug.Trace
+
+data Instruction = Sit | Shoot | Scan Float Float | Aim Float | Move
 
 type Team = Int
 
 colormap :: Team -> Color
 colormap 0 = blue
-colormap 1 = red
+colormap 1 = red 
 
 data Tank = Tank{
 	pos :: Point,
 	angle :: Float,
-	script :: Team
-}
+	team :: Team,
+	memory :: Word64
+}deriving(Show)
 
 data World = World {
 	tanks :: [Tank] ,
 	size :: Float
 }
 
+tau = pi*2
+
 test1 :: Tank
-test1 = Tank (10,10) 0 0
+test1 = Tank (10,10) 0 0 0
 
 test2 :: Tank
-test2 = Tank (490,490) pi 1
+test2 = Tank (490,490) pi 1 0
 
 world = World [test1,test2] 500
 
@@ -30,20 +37,67 @@ render :: World -> IO Picture
 render w = return $ translate (-size w/2) (-size w/2) $ Pictures $ map drawTank (tanks w)
 
 drawTank :: Tank -> Picture
-drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate x y (rotate (angle t) (objectToPicture (tankGun green black)))]
+drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate x y (rotate ((-180/pi)*((angle t)-pi/2)) (objectToPicture (tankGun green black)))]
 	where
 		(x,y) = pos t
-		c = colormap (script t)
-
+		c = colormap (team t)
 
 handle :: Event -> World -> IO World
-handle _ w = return w -- handles no events
+handle _ w = return w 	
 
 step :: Float -> World -> IO World
-step _ = return
+step _ w = trace (show (ts,nts)) return w{tanks = nts} 
+	where
+		ts = tanks w :: [Tank]
+		is = zipWith (\(i,m) t -> (t{memory=m},i)) (map (ai.memory) ts) ts :: [(Tank,Instruction)]
+		nts = handleTanks is	
 
-main = playIO (InWindow "TANKS!" (1000,1000) (200,200)) white 30 world render handle step 
+handleTanks :: [(Tank,Instruction)]-> [Tank]
+handleTanks [] = []
+handleTanks ((t,i):its) = tankHelper i (t,its,[])
 
+tankHelper :: Instruction -> (Tank,[(Tank,Instruction)],[Tank]) -> [Tank]
+tankHelper i (t,[],ts) = nt:nts
+	where
+		(nt,_,nts) = tankDo i (t,[],ts)
+tankHelper i o = tankHelper ni (nt,tail its,t:ts) 
+	where
+		(t,its,ts) = tankDo i o 
+		(nt,ni) = head its
+		
+
+tankDo :: Instruction -> (Tank,[(Tank,Instruction)],[Tank]) -> (Tank,[(Tank,Instruction)],[Tank])
+tankDo Sit (t,its,ts) = (t,its,ts)
+tankDo (Aim a) (t,its,ts) = (t{angle=a},its,ts)
+tankDo (Scan a b) (t,its,ts) = (t{memory = readScan (scanWorld t a b ts) (memory t) },its,ts)
+tankDo Move (t,its,ts) = (t{pos = (x,y)} ,its, ts)
+	where
+		(tx,ty) = pos t
+		ta = angle t
+		(x,y) = (tx + (cos ta),ty + (sin ta)) 
+tankDo Shoot (t,its,ts) = (t, filter (\(t2,i) ->  not (shoots t t2)) its, filter (not . (shoots t)) ts )
+
+shoots :: Tank -> Tank -> Bool
+shoots t1 t2 = abs ((angle t1) - (getAngle t1 t2)) < (pi / 512)
+
+getAngle :: Tank -> Tank -> Float
+getAngle t1 t2 = ca
+	where	
+		(x1,y1) = pos t1
+		(x2,y2) = pos t2
+		ca = (if y2 > y1 then 0 else pi)  + atan ((y2-y1)/(x2-x1)) 
+
+scanWorld :: Tank -> Float -> Float -> [Tank] -> Bool
+scanWorld t1 a b ts = or [ (a < (getAngle t1 t2)) && ((getAngle t1 t2) < b) | t2 <- ts  ]
+
+ai :: Word64 -> (Instruction,Word64)
+ai n = if n < 4096 then ( if mod n 2 == 0 then (Aim ( (fromIntegral) n * (tau/4096)) ,n+1) else (Shoot,n+1) ) else (Aim 0,0)
+
+
+readScan :: Bool -> Word64 -> Word64
+readScan s m =  2 * (div m 2) + if s then 1 else m
+
+main = playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
@@ -59,8 +113,20 @@ type Polygon = [Point]
 type Circle = (Point,Float)
 
 tankBody :: Color -> Object
-tankBody c = [(Pol [(0,0),(0,20),(4,20),(4,0)],black),(Pol [(4,2),(4,18),(16,18),(16,2)],c),(Pol [(16,0),(16,20),(20,20),(20,0)],black)]
+tankBody c = obShift (-10,-10) [(Pol [(0,0),(0,20),(4,20),(4,0)],black),(Pol [(4,2),(4,18),(16,18),(16,2)],c),(Pol [(16,0),(16,20),(20,20),(20,0)],black)]
 
 tankGun :: Color -> Color -> Object
-tankGun c0 c1= [(Circ ((10,10),4),c0),(Pol [(8,8),(8,20),(12,20),(12,8)],c1)]
+tankGun c0 c1= obShift (-10,-10) [(Circ ((10,10),4),c0),(Pol [(8,8),(8,20),(12,20),(12,8)],c1)]
+
+mapPts::(Point -> Point) -> Object -> Object
+mapPts _ [] = []
+mapPts f (((Pol pts),c):o)  = (Pol (map f pts),c) : mapPts f o
+mapPts f ((Circ(pt,r),c):o) = (Circ (f pt,r),c) : mapPts f o
+
+obShift::Point -> Object -> Object
+obShift p = mapPts (ptShift p)
+
+ptShift::Point->Point->Point
+ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
+
 
