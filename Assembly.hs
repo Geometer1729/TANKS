@@ -99,6 +99,9 @@ load mem (a,b,t,x) v "x" = case v of
                                     "b" -> (a,b,t,b)
                                     "t" -> (a,b,t,if t then 1 else 0)
                                     "x" -> (a,b,t,deref mem x)
+                        (M m) -> (a,b,t,deref mem m)
+                        X -> (a,b,t,deref mem x)
+                        (V i) -> (a,b,t,i)
 
 
 deref:: Memory -> Int -> Int
