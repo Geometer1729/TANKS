@@ -17,15 +17,30 @@ type Register = (Int,Int,Bool,Int)
 
 data Value = R RegisterLabel | M Int | X | V Int
 
+val :: Value -> Runtime -> Int
+val (R "a") tam = let (a,_,_,_) = regs tam
+                  in a
+val (R "b") tam = let (_,b,_,_) = regs tam
+                  in b
+val (R "t") tam = let (_,_,t,_) = regs tam
+                  in if t then 1 else 0
+val (R "x") tam = let (_,_,_,x) = regs tam
+                  in deref (mem tam) x
+val (M i) tam = deref (mem tam) i
+val X tam = let (_,_,_,x) = regs tam
+            in deref (mem tam) x
+val (V v) _ = v
+
+
 data Inst =   Load Value RegisterLabel
             | Add Value Value RegisterLabel
             | Sub Value Value RegisterLabel
             | Mul Value Value RegisterLabel
             | Div Value Value RegisterLabel
             | Mod Value Value RegisterLabel
-            | XOR Value Value RegisterLabel
-            | And Value Value RegisterLabel
-            | Or  Value Value RegisterLabel
+            -- | XOR Value Value RegisterLabel
+            -- | And Value Value RegisterLabel
+            -- | Or  Value Value RegisterLabel
             | TLT Value Value
             | TEQ Value Value
             | Scan
@@ -43,6 +58,12 @@ run tam = let c = current tam
               registers = regs tam
           in case (head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
+            (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
+            (Sub v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
+            (Mul v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
+            (Div v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit)
+            (Mod v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
+
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
 load mem (a,b,t,x) v "a" = case v of
