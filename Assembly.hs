@@ -31,7 +31,7 @@ val X tam = let (_,_,_,x) = regs tam
             in deref (mem tam) x
 val (V v) _ = v
 
-data HardInst = Sit | Shoot | HScan Float Float | Aim Float | HMove | HGyro | HGPS
+data HardInst = Sit | Shoot | HScan Float Float | HAim Float | HMove | HGyro | HGPS
 
 data Inst =   Load Value RegisterLabel
             | Add Value Value RegisterLabel
@@ -48,6 +48,7 @@ data Inst =   Load Value RegisterLabel
             | Fire
             | Gyro
             | Move
+            | Aim
             | GPS
             | Jmp Value
             | JmpIf Value
@@ -68,8 +69,14 @@ run tam = let c = current tam
             (TEQ v1 v2) -> (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
             Scan -> (tam,HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
             Fire -> (tam,Shoot)
-
-
+            Gyro -> (tam,HGyro)
+            Move -> (tam,HMove)
+            Aim -> (tam,HAim ((fromIntegral a)*pi/128))
+            GPS -> (tam,HGPS)
+            (Jmp vi) -> let v = val vi tam
+                        in (tam{current=drop v (prog tam)},Sit)
+            (JmpIf vi) -> let v = val vi tam
+                          in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
 load mem (a,b,t,x) v "a" = case v of
