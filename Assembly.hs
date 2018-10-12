@@ -31,6 +31,7 @@ val X tam = let (_,_,_,x) = regs tam
             in deref (mem tam) x
 val (V v) _ = v
 
+data HardInst = Sit | Shoot | HScan Float Float | Aim Float | HMove | HGyro | HGPS
 
 data Inst =   Load Value RegisterLabel
             | Add Value Value RegisterLabel
@@ -55,7 +56,7 @@ data Inst =   Load Value RegisterLabel
 run :: Runtime -> (Runtime,HardInst)
 run tam = let c = current tam
               memo = mem tam
-              registers = regs tam
+              registers@(a,b,t,x) = regs tam
           in case (head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
@@ -63,6 +64,11 @@ run tam = let c = current tam
             (Mul v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
             (Div v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit)
             (Mod v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
+            (TLT v1 v2) -> (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
+            (TEQ v1 v2) -> (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
+            Scan -> (tam,HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
+            Fire -> (tam,Shoot)
+
 
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
@@ -104,5 +110,5 @@ load mem (a,b,t,x) v "x" = case v of
                         (V i) -> (a,b,t,i)
 
 
-deref:: Memory -> Int -> Int
+deref :: Memory -> Int -> Int
 deref = (!!)
