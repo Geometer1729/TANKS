@@ -116,6 +116,10 @@ load mem (a,b,t,x) v "x" = case v of
                         X -> (a,b,t,deref mem x)
                         (V i) -> (a,b,t,i)
 
+setRegister :: Runtime -> Value -> RegisterLabel -> Runtime
+setRegister tam v rl = let m = mem tam
+                           reg = regs tam
+                       in tam{regs=load m reg v rl}
 
 deref :: Memory -> Int -> Int
 deref = (!!)
