@@ -1,0 +1,43 @@
+[3 of 3] Compiling Main             ( main.hs, main.o )
+
+main.hs:95:65: error: Variable not in scope: scanRes :: Value
+   |
+95 | tankDo (HScan a b) (t,its,ts,bs) = (t{tam = setRegister (tam t) scanRes "a"},its,bs)
+   |                                                                 ^^^^^^^
+
+main.hs:101:39: error: Variable not in scope: a :: Float
+    |
+101 |                 scanRes = scanWorld t a b ts    
+    |                                       ^
+
+main.hs:101:41: error: Variable not in scope: b :: Float
+    |
+101 |                 scanRes = scanWorld t a b ts    
+    |                                         ^
+
+main.hs:101:43: error:
+    • Variable not in scope: ts :: [Tank]
+    • Perhaps you meant one of these:
+        ‘bs’ (line 96), ‘t’ (line 96), ‘its’ (line 96)
+    |
+101 |                 scanRes = scanWorld t a b ts    
+    |                                           ^^
+
+main.hs:105:27: error:
+    • Variable not in scope: point :: Tank -> (a, b)
+    • Perhaps you meant ‘print’ (imported from Prelude)
+    |
+105 |                 (tx,ty) = point t
+    |                           ^^^^^
+
+main.hs:109:8: error:
+    • Couldn't match expected type ‘HardInst’ with actual type ‘Inst’
+    • In the pattern: Gyro
+      In an equation for ‘tankDo’:
+          tankDo Gyro (t, its, ts, bs)
+            = (t {tam = setRegister
+                          (tam t) (floor ((angle t) / (tau / 256))) "a"}, 
+               its, bs)
+    |
+109 | tankDo Gyro (t,its,ts,bs) = (t{tam=setRegister (tam t) (floor ((angle t) / (tau/256))) "a" },its,bs)
+    |        ^^^^
