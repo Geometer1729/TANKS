@@ -211,3 +211,26 @@ readval "x" = R "x"
 readval "*" = X
 readval s = if (head s) == '(' then M (read . tail . reverse . tail . reverse $ s) else V (read s)
 
+
+labelMacro :: String -> String
+labelMacro s = let ls = lines s
+		   labels = [(ls !! i,i) | i <- [0..length ls], (last . head . words $ ls !! i) == ':']
+		   stripped = [l | l <- ls, (last . head . words $ l) /= ':']
+	       in concat $ map (replace labels) stripped
+
+replace :: [(String,Int)] -> String -> String
+replace labels line = let inst = head . words $ line
+		      in case inst of
+			"Jmp" -> let go = head . tail . words $ line
+				     num = lookup go labels
+				 in case num of
+					(Just n) -> "Jmp " ++ show n
+					Nothing -> error "Nonexistent label: " ++ go
+			"JmpIf" -> let go = head . tail . tail . words $ line
+				       cond = head . tail . words $ line
+				       num = lookup go labels
+				 in case num of
+					(Just n) -> "JmpIf " ++ cond ++ " " ++ show n
+					Nothing -> error "Nonexistent label: " ++ go
+  
+
