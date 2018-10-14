@@ -133,7 +133,7 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			pos = (500,300),
 			angle = 1.57,
 			team = 0,
-			memory = tam2
+			memory = tam1
 		   }
 	let tank2 = Tank {
 		pos = (500,700),
