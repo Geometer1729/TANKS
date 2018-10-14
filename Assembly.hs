@@ -33,7 +33,7 @@ val X tam = let (_,_,_,x) = regs tam
             in deref (mem tam) x
 val (V v) _ = v
 
-data HardInst = Sit | Shoot | HScan Float Float | HAim Float | HMove | HGyro | HGPS
+data HardInst = Sit | Shoot | HScan Float Float | HAim Float | HMove | HGyro | HGPS | Die
 
 data Inst =   Load Value RegisterLabel
             | Add Value Value RegisterLabel
@@ -69,7 +69,7 @@ run tam = let c = current tam
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
             (Sub v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
             (Mul v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
-            (Div v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit)
+            (Div v1 v2 rl) -> if (val v2 tam) == 0 then (tam{current=tail c},Die) else (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit)
             (Mod v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
             (TLT v1 v2) -> (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
             (TEQ v1 v2) -> (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
