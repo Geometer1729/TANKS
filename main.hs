@@ -189,4 +189,3 @@ ptShift::Point->Point->Point
 ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
 
 
->>>>>>> 9d5a06d19cbf3cc53d4debbe52c57bfb8a199f12
