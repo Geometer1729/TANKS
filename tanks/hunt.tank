@@ -1,0 +1,22 @@
+Load 255 b
+Write b 1    now 255
+Add a b b    now angle sum
+Div b 2 b    now angle avg
+Write b 2    slot 2 now m
+start: Scan
+TEQ b 0 -- any scaned tanks
+Load (2) a
+JmpIf else1
+Write a 0
+Jmp end1
+else1: Load (2) b
+Write b 0
+Write a 1    if else block that sets the midpoint into the apropriate register
+end1: Load (0) a
+Load (2) b
+TEQ a b
+JmpIf kill
+Jmp start
+kill: Aim
+shoot: Fire
+Jmp shoot
