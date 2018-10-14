@@ -149,7 +149,9 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			bulets = [],
 			size = 1000
 			}
-	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle step 
+	let newtam = exec tam1
+	print newtam	
+--playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle step 
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
