@@ -9,13 +9,14 @@ data Runtime = Runtime {
                 mem :: Memory,
                 prog :: [Inst],
                 current :: [Inst]
-              }
+              } deriving (Show)
 
 type Memory = [Int]
 type RegisterLabel = String
 type Register = (Int,Int,Bool,Int)
 
 data Value = R RegisterLabel | M Int | X | V Int
+		deriving Show
 
 val :: Value -> Runtime -> Int
 val (R "a") tam = let (a,_,_,_) = regs tam
@@ -53,6 +54,10 @@ data Inst =   Load Value RegisterLabel
             | Jmp Value
             | JmpIf Value
             | Nop
+	deriving Show
+
+exec :: Runtime -> Runtime
+exec r = if null (current r) then r else exec . fst . run $ r
 
 run :: Runtime -> (Runtime,HardInst)
 run tam = let c = current tam
