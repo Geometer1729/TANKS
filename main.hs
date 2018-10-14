@@ -54,13 +54,14 @@ drawBullet (Bullet (x,y) _) = translate x y (circle 1)
 handle :: Event -> World -> IO World
 handle _ w = return w 	
 
-step :: Float -> World -> IO World
-step _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs} 
+step :: Bool -> Float -> World -> IO World
+step debug _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs} 
 	where
 		sts = filter (notShot nbs) nts
 		nbs = (bulets w) ++ (map stepBulleter bs)
 		ts = tanks w :: [Tank]
-		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map ((uncurry run) . (\t -> (memory t,(team t) == 0))) ts) ts :: [(Tank,HardInst)]
+		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map 
+			(\t -> run (memory t) (team t == 1 && debug)) ts) ts :: [(Tank,HardInst)]
 		(nts,bs) = handleTanks is	
 
 bulletInMap :: Bullet -> Bool
@@ -126,8 +127,10 @@ scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ f
 
 main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
 	args <- getArgs
-	code1 <- readFile $ head args
-	code2 <- readFile $ (head . tail) args
+	let debug = (head args) == "-v"
+	let nargs = (if debug then tail else id ) args
+	code1 <- readFile $ head nargs
+	code2 <- readFile $ (head . tail) nargs
 	let tam1 = makeTAM code1
 	let tam2 = makeTAM code2
 	print tam1
@@ -151,7 +154,7 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			}
 	let newtam = exec tam1
 	--print newtam	
-	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle step 
+	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug) 
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
