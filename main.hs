@@ -50,7 +50,6 @@ drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate
 drawBullet :: Bullet -> Picture
 drawBullet (Bullet (x,y) _) = translate x y (circle 1)
 
-
 handle :: Event -> World -> IO World
 handle _ w = return w 	
 
