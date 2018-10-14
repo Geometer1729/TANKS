@@ -1,2 +1,2 @@
-Nop
-Jmp 0
+yes: Nop
+Jmp yes
