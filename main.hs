@@ -3,6 +3,7 @@ import Graphics.Gloss.Interface.IO.Game
 import Data.Word
 import Debug.Trace
 import Assembly
+import System.Environment
 
 type Team = Int
 
@@ -121,17 +122,27 @@ scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ f
 		sTs =  [ t2 | t2 <- ts , (a < (getAngle t1 t2)) && ((getAngle t1 t2) < b) ]
 
 main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
-	code <- readFile "tanks/circlemove.tank"
-	let tam = makeTAM code
-	print tam
-	let tank = Tank {
-			pos = (500,500),
+	args <- getArgs
+	code1 <- readFile $ head args
+	code2 <- readFile $ (head . tail) args
+	let tam1 = makeTAM code1
+	let tam2 = makeTAM code2
+	print tam1
+	print tam2
+	let tank1 = Tank {
+			pos = (500,300),
 			angle = 1.57,
-			team = 1,
-			memory = tam
+			team = 0,
+			memory = tam2
 		   }
+	let tank2 = Tank {
+		pos = (500,700),
+		angle = (3/4)*tau,
+		team = 1,
+		memory = tam2
+	}
 	let newworld = World {
-			tanks = [tank],
+			tanks = [tank1,tank2],
 			bulets = [],
 			size = 1000
 			}
