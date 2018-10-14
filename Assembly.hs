@@ -112,7 +112,7 @@ runDebug tam = let
             (Jmp vi) -> let v = val vi tam
                         in trace ("Jumping to " ++ (show $ val vi tam)) (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
-                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit))
+                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if t then (tam{current=drop v (prog tam)},Sit) else (tam,Sit))
             Nop -> trace ("Nop") (tam{current = tail c},Sit)
 
 
@@ -213,11 +213,21 @@ readval s = if (head s) == '(' then M (read . tail . reverse . tail . reverse $ 
 
 tracethis x = trace (show x) x
 
+labelConstant :: String -> String
+labelConstant s = let ls = lines s
+		      labels = [(head $ words (ls !! i),i) | i <- [0..(length ls)-1], (head $ words (ls !! i)) == "set"]
+		  in concat $ map (replaceconst labels) ls
+
+replaceconst :: [(String,Int)] -> String -> String
+replaceconst labels s = let first = (head . words $ s)
+			in s
+
 labelMacro :: String -> String
 labelMacro s = let ls = lines s
-		   labels = [(init . head . words $ ls !! i,i) | i <- [0..(length ls)-1], (last . head . words $ ls !! i) == ':']
+		   labels = [(init . head . words $ (ls !! i),i) | i <- [0..(length ls)-1], (last . head . words $ (ls !! i)) == ':']
 		   stripped = map strip ls
 	       in (concat $ map (replace labels) stripped)
+
 
 replace :: [(String,Int)] -> String -> String
 replace labels line = let inst = (head . words $ line)
