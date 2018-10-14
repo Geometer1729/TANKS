@@ -1,0 +1,4 @@
+Nop
+set test 10
+here: Load test a
+Jmp here

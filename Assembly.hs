@@ -3,6 +3,8 @@
 module Assembly where
 
 import HTank
+import Data.List
+import Text.Regex
 import Debug.Trace
 
 data Runtime = Runtime {
@@ -199,7 +201,7 @@ makeprog (c:cs) = let line = words c
 			"Jmp" -> Jmp (readval (line !! 1))
 			"JmpIf" -> JmpIf (readval (line !! 1))
 			"Nop" -> Nop
-			_ -> error $ "Unknown instruction " ++ c ++ "at line " ++ (show $ length cs) ++ " from the bottom"
+			_ -> error $ "Unknown instruction " ++ c ++ " at line " ++ (show $ length cs) ++ " from the bottom"
 			) : (makeprog cs)
 makeprog [] = []
 
@@ -211,16 +213,20 @@ readval "x" = R "x"
 readval "*" = X
 readval s = if (head s) == '(' then M (read . tail . reverse . tail . reverse $ s) else V (read s)
 
+preproc :: String -> String
+preproc = labelConstant . labelMacro
+
+
 tracethis x = trace (show x) x
 
 labelConstant :: String -> String
 labelConstant s = let ls = lines s
-		      labels = [(head $ words (ls !! i),i) | i <- [0..(length ls)-1], (head $ words (ls !! i)) == "set"]
-		  in concat $ map (replaceconst labels) ls
+		      labels = [(head . tail $ words (ls !! i),read . last . words $ (ls !! i)) | i <- [0..(length ls)-1], (head $ words (ls !! i)) == "set"]
+		  in tracethis $ concat $ [l++"\n" | l <- (map (flip replaceconst $ labels) ls), not $ null l]
 
-replaceconst :: [(String,Int)] -> String -> String
-replaceconst labels s = let first = (head . words $ s)
-			in s 
+replaceconst :: String -> [(String,Int)] -> String
+replaceconst s l | "set" `isPrefixOf` s = ""
+                 | otherwise  =  foldl (\a l ->trace ("Label: " ++ (fst l) ++ ", value: " ++ (show $ snd l)) subRegex (mkRegex (fst l)) a (show $ snd l)) s l
 
 labelMacro :: String -> String
 labelMacro s = let ls = lines s
