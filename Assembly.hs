@@ -169,7 +169,9 @@ makeprog (c:cs) = let line = words c
 			"GPS" -> GPS
 			"Jmp" -> Jmp (readval (line !! 1))
 			"JmpIf" -> JmpIf (readval (line !! 1))
-			"Nop" -> Nop) : (makeprog cs)
+			"Nop" -> Nop
+			_ -> error $ "Unknown instruction " ++ c ++ "at line " ++ (show $ length cs) ++ " from the bottom"
+			) : (makeprog cs)
 makeprog [] = []
 
 readval :: String -> Value
