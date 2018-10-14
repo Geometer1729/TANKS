@@ -66,7 +66,7 @@ run tam debug = let
 		c = current tam
 		memo = mem tam
 		registers@(a,b,t,x) = regs tam
-          in case (trace (if debug then (show $ head c) else "") head c) of
+          in if debug then runDebug tam else case (head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
 	    (Write rl m) -> (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
@@ -87,6 +87,34 @@ run tam debug = let
             (JmpIf vi) -> let v = val vi tam
                           in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
             Nop -> (tam{current = tail c},Sit)
+
+runDebug :: Runtime -> (Runtime,HardInst)
+runDebug tam = let 
+	    	c = current tam
+		memo = mem tam
+		registers@(a,b,t,x) = regs tam
+          in case (head c) of
+            (Load v rl) -> trace ("Load: " ++ (show (val v tam)) ++ "-> " ++ rl) (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
+	    (Write rl m) -> trace ("Write: " ++ rl ++ "(" ++ (show $ val (R rl) tam) ++ ") -> " ++ "Mem[" ++ show m ++ "]") (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
+            (Add v1 v2 rl) -> trace ("Add: " ++ (show $ val v1 tam) ++ " + " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
+            (Sub v1 v2 rl) ->  trace ("Sub: " ++ (show $ val v1 tam) ++ " - " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
+            (Mul v1 v2 rl) ->  trace ("Mul: " ++ (show $ val v1 tam) ++ " * " ++ (show $ val v2 tam) ++ " -> " ++ rl)  (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
+            (Div v1 v2 rl) ->  trace ("Div: " ++ (show $ val v1 tam) ++ " / " ++ (show $ val v2 tam) ++ " -> " ++ rl) (if (val v2 tam) == 0 then (tam{current=tail c},Die) else (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit))
+            (Mod v1 v2 rl) ->  trace ("Mod: " ++ (show $ val v1 tam) ++ " % " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
+            (TLT v1 v2) ->  trace ("TLT: " ++ (show $ val v1 tam) ++ " < " ++ (show $ val v2 tam) ++ " -> t") (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
+            (TEQ v1 v2) -> trace ("TEQ: " ++ (show $ val v1 tam) ++ " == " ++ (show $ val v2 tam) ++ " -> t") (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
+            Scan -> trace ("Scan from " ++ (show a) ++ " to " ++ (show b)) (tam{current = tail c},HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
+            Fire -> trace ("Fire") (tam{current=tail c},Shoot)
+            Gyro -> trace ("Gyro") (tam{current = tail c},HGyro)
+            Move -> trace ("Move") (tam{current = tail c},HMove)
+            Aim -> trace ("Aim at " ++ (show a)) (tam{current = tail c},HAim ((fromIntegral a)*pi/128))
+            GPS -> trace ("GPS") (tam{current = tail c},HGPS)
+            (Jmp vi) -> let v = val vi tam
+                        in trace ("Jumping to " ++ (show $ val vi tam)) (tam{current=drop v (prog tam)},Sit)
+            (JmpIf vi) -> let v = val vi tam
+                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit))
+            Nop -> trace ("Nop") (tam{current = tail c},Sit)
+
 
 write :: Memory -> Int -> Int -> Memory
 write [] val loc = []
