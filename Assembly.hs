@@ -85,7 +85,7 @@ run tam debug = let
             (Jmp vi) -> let v = val vi tam
                         in (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
-                          in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
+                          in if t then (tam{current=drop v (prog tam)},Sit) else (tam{current = tail c},Sit)
             Nop -> (tam{current = tail c},Sit)
 
 runDebug :: Runtime -> (Runtime,HardInst)
@@ -112,7 +112,7 @@ runDebug tam = let
             (Jmp vi) -> let v = val vi tam
                         in trace ("Jumping to " ++ (show $ val vi tam)) (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
-                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if t then (tam{current=drop v (prog tam)},Sit) else (tam,Sit))
+                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if t then (tam{current=drop v (prog tam)},Sit) else (tam{current = tail c},Sit))
             Nop -> trace ("Nop") (tam{current = tail c},Sit)
 
 
@@ -220,7 +220,7 @@ labelConstant s = let ls = lines s
 
 replaceconst :: [(String,Int)] -> String -> String
 replaceconst labels s = let first = (head . words $ s)
-			in s
+			in s 
 
 labelMacro :: String -> String
 labelMacro s = let ls = lines s
