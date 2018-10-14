@@ -1,0 +1,6 @@
+Move
+Add 32 a b
+Load b a
+Aim b
+Fire
+Jmp 0

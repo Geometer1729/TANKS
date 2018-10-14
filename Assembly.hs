@@ -3,6 +3,7 @@
 module Assembly where
 
 import HTank
+import Debug.Trace
 
 data Runtime = Runtime {
                 regs :: Register,
@@ -57,13 +58,13 @@ data Inst =   Load Value RegisterLabel
 	deriving Show
 
 exec :: Runtime -> Runtime
-exec r = if null (current r) then r else exec . fst . run $ r
+exec r = if null $ current r then r else exec . fst . run $ r
 
 run :: Runtime -> (Runtime,HardInst)
 run tam = let c = current tam
               memo = mem tam
               registers@(a,b,t,x) = regs tam
-          in case (head c) of
+          in case (trace (show $ head c) head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
             (Sub v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
@@ -72,17 +73,17 @@ run tam = let c = current tam
             (Mod v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
             (TLT v1 v2) -> (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
             (TEQ v1 v2) -> (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
-            Scan -> (tam,HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
-            Fire -> (tam,Shoot)
-            Gyro -> (tam,HGyro)
-            Move -> (tam,HMove)
-            Aim -> (tam,HAim ((fromIntegral a)*pi/128))
-            GPS -> (tam,HGPS)
+            Scan -> (tam{current = tail c},HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
+            Fire -> (tam{current=tail c},Shoot)
+            Gyro -> (tam{current = tail c},HGyro)
+            Move -> (tam{current = tail c},HMove)
+            Aim -> (tam{current = tail c},HAim ((fromIntegral a)*pi/128))
+            GPS -> (tam{current = tail c},HGPS)
             (Jmp vi) -> let v = val vi tam
                         in (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
                           in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
-            Nop -> (tam,Sit)
+            Nop -> (tam{current = tail c},Sit)
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
 load mem (a,b,t,x) v "a" = case v of
