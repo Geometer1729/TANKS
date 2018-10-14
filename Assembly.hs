@@ -232,5 +232,6 @@ replace labels line = let inst = head . words $ line
 				 in case num of
 					(Just n) -> "JmpIf " ++ cond ++ " " ++ show n
 					Nothing -> error "Nonexistent label: " ++ go
+			a -> a
   
 
