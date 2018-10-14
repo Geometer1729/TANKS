@@ -9,13 +9,14 @@ data Runtime = Runtime {
                 mem :: Memory,
                 prog :: [Inst],
                 current :: [Inst]
-              }
+              } deriving (Show)
 
 type Memory = [Int]
 type RegisterLabel = String
 type Register = (Int,Int,Bool,Int)
 
 data Value = R RegisterLabel | M Int | X | V Int
+		deriving Show
 
 val :: Value -> Runtime -> Int
 val (R "a") tam = let (a,_,_,_) = regs tam
@@ -53,6 +54,10 @@ data Inst =   Load Value RegisterLabel
             | Jmp Value
             | JmpIf Value
             | Nop
+	deriving Show
+
+exec :: Runtime -> Runtime
+exec r = if null (current r) then r else exec . fst . run $ r
 
 run :: Runtime -> (Runtime,HardInst)
 run tam = let c = current tam
@@ -77,6 +82,7 @@ run tam = let c = current tam
                         in (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
                           in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
+            Nop -> (tam,Sit)
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
 load mem (a,b,t,x) v "a" = case v of
@@ -123,3 +129,43 @@ setRegister tam v rl = let m = mem tam
 
 deref :: Memory -> Int -> Int
 deref = (!!)
+
+makeTAM :: String -> Runtime
+makeTAM code = Runtime {
+		regs = (0,0,False,0),
+		mem = [0 | _ <- [1..256]],
+		prog = prog',
+		current = prog'
+		}
+		where prog' = makeprog (lines code)
+
+makeprog :: [String] -> [Inst]
+makeprog (c:cs) = let line = words c
+		      i = head line
+		  in (case i of
+			"Load" -> Load (readval (line !! 1)) (line !! 2)
+			"Add" -> Add (readval (line !! 1)) (readval (line !! 2)) (line !! 3)	
+			"Sub" -> Sub (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
+			"Mul" -> Mul (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
+			"Div" -> Div (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
+			"Mod" -> Mod (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
+			"TLT" -> TLT (readval (line !! 1)) (readval (line !! 2))
+			"TEQ" -> TEQ (readval (line !! 1)) (readval (line !! 2))
+			"Scan" -> Scan
+			"Fire" -> Fire
+			"Gyro" -> Gyro
+			"Move" -> Move
+			"Aim" -> Aim
+			"GPS" -> GPS
+			"Jmp" -> Jmp (readval (line !! 1))
+			"JmpIf" -> JmpIf (readval (line !! 1))
+			"Nop" -> Nop) : (makeprog cs)
+
+readval :: String -> Value
+readval "a" = R "a"
+readval "b" = R "b"
+readval "t" = R "t"
+readval "x" = R "x"
+readval "*" = X
+readval s = if (head s) == '(' then M (read . tail . reverse . tail . reverse $ s) else V (read s)
+
