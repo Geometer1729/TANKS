@@ -36,6 +36,7 @@ val (V v) _ = v
 data HardInst = Sit | Shoot | HScan Float Float | HAim Float | HMove | HGyro | HGPS | Die
 
 data Inst =   Load Value RegisterLabel
+	    | Write RegisterLabel Int
             | Add Value Value RegisterLabel
             | Sub Value Value RegisterLabel
             | Mul Value Value RegisterLabel
@@ -66,6 +67,7 @@ run tam = let c = current tam
               registers@(a,b,t,x) = regs tam
           in case (trace (show $ head c) head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
+	    (Write rl m) -> (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
             (Sub v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
             (Mul v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
@@ -84,6 +86,11 @@ run tam = let c = current tam
             (JmpIf vi) -> let v = val vi tam
                           in if v > 0 then (tam{current=drop v (prog tam)},Sit) else (tam,Sit)
             Nop -> (tam{current = tail c},Sit)
+
+write :: Memory -> Int -> Int -> Memory
+write [] val loc = []
+write (m:ms) val 0 = val : ms
+write(m:ms) val loc = m : write ms val (loc-1)
 
 load :: Memory -> Register -> Value -> RegisterLabel -> Register
 load mem (a,b,t,x) v "a" = case v of
@@ -140,11 +147,13 @@ makeTAM code = Runtime {
 		}
 		where prog' = makeprog (lines code)
 
+
 makeprog :: [String] -> [Inst]
 makeprog (c:cs) = let line = words c
 		      i = head line
 		  in (case i of
 			"Load" -> Load (readval (line !! 1)) (line !! 2)
+			"Write" -> Write (line !! 1) (read (line !! 2))
 			"Add" -> Add (readval (line !! 1)) (readval (line !! 2)) (line !! 3)	
 			"Sub" -> Sub (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
 			"Mul" -> Mul (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
