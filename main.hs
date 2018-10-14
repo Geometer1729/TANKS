@@ -120,7 +120,11 @@ scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ f
 	where
 		sTs =  [ t2 | t2 <- ts , (a < (getAngle t1 t2)) && ((getAngle t1 t2) < b) ]
 
-main = playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
+main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
+	code <- readFile "test0.tank"
+	let tankStart = makeTAM code
+	let tankEnd = exec tankStart
+	print tankEnd
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
