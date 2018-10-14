@@ -2,7 +2,7 @@
 All commands are capitalized
 Comments are any text on a line beyond what the interpreter expects (it doesn't care)
 
-##Commands:
+## Commands:
 * "Load" loads any value into a given register.
   Example:
   * Load 10 a --Puts the value of 10 into a
@@ -35,17 +35,19 @@ Comments are any text on a line beyond what the interpreter expects (it doesn't 
 * "Move" advances the tank 10 pixels
 * "Aim" sets the orientation of the tank to the value in a starting from 0
 * "GPS" loads the x chunk of the tank into a and the y chunk of the tank into b
-* "Jmp" takes a value and causes the execution to resume from that index in the program
+* "Jmp" takes a label and causes the execution to resume from that index in the program
   Example:
-   * Jmp 5
-   * Jmp a
-   * Jmp (40)
-   * Jmp *
+   * Jmp shoot
+   * Jmp loop
 * "JmpIf" acts as Jmp when t is 1, but does not do anything when t is 0
 * "Nop" does nothing
-##Values:
+
+## Values:
 A value is either a
 1. Register label (a,b,t,x), and acts as the value of that register
-2. Memory location (_) where _ is a literal, and acts as the value in memory at that location
-3. Pointer dereference, *, and acts as the value that the X register points to
+2. Memory location (\_) where \_ is a literal, and acts as the value in memory at that location
+3. Pointer dereference, \*, and acts as the value that the X register points to
 4. A literal
+
+## Labels:
+A label is any string with no spaces ending in a colon before a command
