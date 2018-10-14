@@ -59,12 +59,13 @@ data Inst =   Load Value RegisterLabel
 	deriving Show
 
 exec :: Runtime -> Runtime
-exec r = if null $ current r then r else exec . fst . (flip run $ true) $ r
+exec r = if null $ current r then r else exec . fst . (flip run $ True) $ r
 
 run :: Runtime -> Bool -> (Runtime,HardInst)
-run tam debug = let c = current tam
-              memo = mem tam
-              registers@(a,b,t,x) = regs tam
+run tam debug = let 
+		c = current tam
+		memo = mem tam
+		registers@(a,b,t,x) = regs tam
           in case (trace (if debug then (show $ head c) else "") head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
 	    (Write rl m) -> (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)

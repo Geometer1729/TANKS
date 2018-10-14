@@ -60,7 +60,7 @@ step _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ 
 		sts = filter (notShot nbs) nts
 		nbs = (bulets w) ++ (map stepBulleter bs)
 		ts = tanks w :: [Tank]
-		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map (run .memory) ts) ts :: [(Tank,HardInst)]
+		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map ((uncurry run) . (\t -> (memory t,(team t) == 0))) ts) ts :: [(Tank,HardInst)]
 		(nts,bs) = handleTanks is	
 
 bulletInMap :: Bullet -> Bool
@@ -139,7 +139,7 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			memory = tam1
 		   }
 	let tank2 = Tank {
-		pos = (500,700),
+		pos = (600,700),
 		angle = (3/4)*tau,
 		team = 1,
 		memory = tam2
@@ -150,8 +150,8 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			size = 1000
 			}
 	let newtam = exec tam1
-	print newtam	
---playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle step 
+	--print newtam	
+	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle step 
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
