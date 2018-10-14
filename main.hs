@@ -129,10 +129,10 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 	args <- getArgs
 	let debug = (head args) == "-v"
 	let nargs = (if debug then tail else id ) args
-	code1 <- readFile $ head nargs
-	code2 <- readFile $ (head . tail) nargs
-	let tam1 = makeTAM code1
-	let tam2 = makeTAM code2
+	code1 <-  readFile $ head nargs
+	code2 <-  readFile $ (head . tail) nargs
+	let tam1 = makeTAM $ labelMacro code1
+	let tam2 = makeTAM $ labelMacro code2
 	print tam1
 	print tam2
 	let tank1 = Tank {
