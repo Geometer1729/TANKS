@@ -92,7 +92,7 @@ runDebug :: Runtime -> (Runtime,HardInst)
 runDebug tam = let 
 	    	c = current tam
 		memo = mem tam
-		registers@(a,b,t,x) = regs tam
+		registers@(a,b,t,x) = trace (show $ regs tam) regs tam
           in case (head c) of
             (Load v rl) -> trace ("Load: " ++ (show (val v tam)) ++ "-> " ++ rl) (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
 	    (Write rl m) -> trace ("Write: " ++ rl ++ "(" ++ (show $ val (R rl) tam) ++ ") -> " ++ "Mem[" ++ show m ++ "]") (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
