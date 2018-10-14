@@ -16,7 +16,7 @@ data Tank = Tank{
 	angle :: Float,
 	team :: Team,
 	memory :: Runtime
-}
+} | DeadTank
 
 data Bullet = Bullet {
 	bpos :: Point,
@@ -75,10 +75,10 @@ handleTanks [] = ([],[])
 handleTanks ((t,i):its) = tankHelper i (t,its,[],[])
 
 tankHelper :: HardInst -> (Tank,[(Tank,HardInst)],[Tank],[Bullet]) -> ([Tank],[Bullet])
-tankHelper i (t,[],ts,bs) = (nt:ts,nbs)
+tankHelper i (t,[],ts,bs) = (if nt == DeadTank then ts else nt:ts,nbs)
 	where
 		(nt,_,nbs) = tankDo i (t,[],ts,bs)
-tankHelper i (t,its,ts,bs) = tankHelper nni (nnt,tail its,nt:ts,nbs) 
+tankHelper i (t,its,ts,bs) = tankHelper nni (nnt,tail its,if nt == DeadTank then ts else nt:ts,nbs) 
 	where
 		(nt,nits,nbs) = tankDo i (t,its,ts,bs)
 		(nnt,nni) = head its
@@ -90,7 +90,7 @@ tankDo (HAim a) (t,its,_,bs) = (t{angle=a},its,bs)
 tankDo (HScan a b) (t,its,ts,bs) = (t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},its,bs)
 	where
 		(ra,rb) = scanWorld t a b ts
-		
+tankDo Die (t,its,_,bs) = (DeadTank,its,ts,bs)	
 tankDo HMove (t,its,_,bs) = (t{pos = (x,y)} ,its,bs)
 	where
 		(tx,ty) = pos t
