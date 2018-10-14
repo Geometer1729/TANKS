@@ -50,7 +50,6 @@ drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate
 drawBullet :: Bullet -> Picture
 drawBullet (Bullet (x,y) _) = translate x y (circle 1)
 
-
 handle :: Event -> World -> IO World
 handle _ w = return w 	
 
@@ -131,6 +130,9 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 	let nargs = (if debug then tail else id ) args
 	code1 <-  readFile $ head nargs
 	code2 <-  readFile $ (head . tail) nargs
+	let edit = labelMacro code2;
+	putStrLn code2
+	putStrLn edit
 	let tam1 = makeTAM $ preproc code1
 	let tam2 = makeTAM $ preproc code2
 	print tam1
@@ -187,3 +189,4 @@ ptShift::Point->Point->Point
 ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
 
 
+>>>>>>> 9d5a06d19cbf3cc53d4debbe52c57bfb8a199f12
