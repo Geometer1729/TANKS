@@ -6,6 +6,7 @@ import HTank
 import Data.List
 import Text.Regex
 import Debug.Trace
+import System.IO.Unsafe
 
 data Runtime = Runtime {
                 regs :: Register,
@@ -61,14 +62,14 @@ data Inst =   Load Value RegisterLabel
 	deriving Show
 
 exec :: Runtime -> Runtime
-exec r = if null $ current r then r else exec . fst . (flip run $ True) $ r
+exec r = if null $ current r then r else exec . fst . run $ r
 
-run :: Runtime -> Bool -> (Runtime,HardInst)
-run tam debug = let 
+run :: Runtime -> (Runtime,HardInst)
+run tam = let
 		c = current tam
 		memo = mem tam
 		registers@(a,b,t,x) = regs tam
-          in if debug then runDebug tam else case (head c) of
+          in case (head c) of
             (Load v rl) -> (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
 	    (Write rl m) -> (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
             (Add v1 v2 rl) -> (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
@@ -90,32 +91,32 @@ run tam debug = let
                           in if t then (tam{current=drop v (prog tam)},Sit) else (tam{current = tail c},Sit)
             Nop -> (tam{current = tail c},Sit)
 
-runDebug :: Runtime -> (Runtime,HardInst)
-runDebug tam = let 
+runDebug :: Runtime -> IO (Runtime,HardInst)
+runDebug tam = let
 	    	c = current tam
 		memo = mem tam
 		registers@(a,b,t,x) = trace (show $ regs tam) regs tam
           in case (head c) of
-            (Load v rl) -> trace ("Load: " ++ (show (val v tam)) ++ "-> " ++ rl) (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
-	    (Write rl m) -> trace ("Write: " ++ rl ++ "(" ++ (show $ val (R rl) tam) ++ ") -> " ++ "Mem[" ++ show m ++ "]") (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
-            (Add v1 v2 rl) -> trace ("Add: " ++ (show $ val v1 tam) ++ " + " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
-            (Sub v1 v2 rl) ->  trace ("Sub: " ++ (show $ val v1 tam) ++ " - " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
-            (Mul v1 v2 rl) ->  trace ("Mul: " ++ (show $ val v1 tam) ++ " * " ++ (show $ val v2 tam) ++ " -> " ++ rl)  (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
-            (Div v1 v2 rl) ->  trace ("Div: " ++ (show $ val v1 tam) ++ " / " ++ (show $ val v2 tam) ++ " -> " ++ rl) (if (val v2 tam) == 0 then (tam{current=tail c},Die) else (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit))
-            (Mod v1 v2 rl) ->  trace ("Mod: " ++ (show $ val v1 tam) ++ " % " ++ (show $ val v2 tam) ++ " -> " ++ rl) (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
-            (TLT v1 v2) ->  trace ("TLT: " ++ (show $ val v1 tam) ++ " < " ++ (show $ val v2 tam) ++ " -> t") (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
-            (TEQ v1 v2) -> trace ("TEQ: " ++ (show $ val v1 tam) ++ " == " ++ (show $ val v2 tam) ++ " -> t") (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
-            Scan -> trace ("Scan from " ++ (show a) ++ " to " ++ (show b)) (tam{current = tail c},HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
-            Fire -> trace ("Fire") (tam{current=tail c},Shoot)
-            Gyro -> trace ("Gyro") (tam{current = tail c},HGyro)
-            Move -> trace ("Move") (tam{current = tail c},HMove)
-            Aim -> trace ("Aim at " ++ (show a)) (tam{current = tail c},HAim ((fromIntegral a)*pi/128))
-            GPS -> trace ("GPS") (tam{current = tail c},HGPS)
+            (Load v rl) -> do print ("Load: " ++ (show (val v tam)) ++ "-> " ++ rl); return (tam{regs=(load memo registers v rl),current = (tail c)},Sit)
+	    (Write rl m) -> do print ("Write: " ++ rl ++ "(" ++ (show $ val (R rl) tam) ++ ") -> " ++ "Mem[" ++ show m ++ "]"); return (tam{mem=write memo (val (R rl) tam) m,current = tail c},Sit)
+            (Add v1 v2 rl) -> do print ("Add: " ++ (show $ val v1 tam) ++ " + " ++ (show $ val v2 tam) ++ " -> " ++ rl); return (tam{regs=(load memo registers (V (val v1 tam + val v2 tam)) rl),current=tail c},Sit)
+            (Sub v1 v2 rl) ->  do print ("Sub: " ++ (show $ val v1 tam) ++ " - " ++ (show $ val v2 tam) ++ " -> " ++ rl); return (tam{regs=(load memo registers (V (val v1 tam - val v2 tam)) rl),current=tail c},Sit)
+            (Mul v1 v2 rl) ->  do print ("Mul: " ++ (show $ val v1 tam) ++ " * " ++ (show $ val v2 tam) ++ " -> " ++ rl);  return (tam{regs=(load memo registers (V (val v1 tam * val v2 tam)) rl),current=tail c},Sit)
+            (Div v1 v2 rl) ->  do print ("Div: " ++ (show $ val v1 tam) ++ " / " ++ (show $ val v2 tam) ++ " -> " ++ rl); (if (val v2 tam) == 0 then return (tam{current=tail c},Die) else return (tam{regs=(load memo registers (V (val v1 tam `div` val v2 tam)) rl),current=tail c},Sit))
+            (Mod v1 v2 rl) ->  do print ("Mod: " ++ (show $ val v1 tam) ++ " % " ++ (show $ val v2 tam) ++ " -> " ++ rl); return (tam{regs=(load memo registers (V (val v1 tam `mod` val v2 tam)) rl),current=tail c},Sit)
+            (TLT v1 v2) ->  do print ("TLT: " ++ (show $ val v1 tam) ++ " < " ++ (show $ val v2 tam) ++ " -> t"); return (tam{regs=(load memo registers (V (val v2 tam - val v1 tam)) "t"),current=tail c},Sit)
+            (TEQ v1 v2) -> do print ("TEQ: " ++ (show $ val v1 tam) ++ " == " ++ (show $ val v2 tam) ++ " -> t"); return (tam{regs=(load memo registers (V (if val v1 tam == val v2 tam then 1 else 0)) "t"),current=tail c},Sit)
+            Scan -> do print ("Scan from " ++ (show a) ++ " to " ++ (show b)); return (tam{current = tail c},HScan ((fromIntegral a)*pi/128) ((fromIntegral b)*pi/128))
+            Fire -> do print ("Fire"); return (tam{current=tail c},Shoot)
+            Gyro -> do print ("Gyro"); return (tam{current = tail c},HGyro)
+            Move -> do print ("Move"); return (tam{current = tail c},HMove)
+            Aim -> do print ("Aim at " ++ (show a)); return (tam{current = tail c},HAim ((fromIntegral a)*pi/128))
+            GPS -> do print ("GPS"); return (tam{current = tail c},HGPS)
             (Jmp vi) -> let v = val vi tam
-                        in trace ("Jumping to " ++ (show $ val vi tam)) (tam{current=drop v (prog tam)},Sit)
+                        in do print ("Jumping to " ++ (show $ val vi tam)); return (tam{current=drop v (prog tam)},Sit)
             (JmpIf vi) -> let v = val vi tam
-                          in trace ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind")) (if t then (tam{current=drop v (prog tam)},Sit) else (tam{current = tail c},Sit))
-            Nop -> trace ("Nop") (tam{current = tail c},Sit)
+                          in do print ("Jumping if " ++ (show t) ++ (if t then "!" else "... nevermind"));   (if t then return (tam{current=drop v (prog tam)},Sit) else return (tam{current = tail c},Sit))
+            Nop ->  do print ("Nop"); return $ (tam{current = tail c},Sit)
 
 
 write :: Memory -> Int -> Int -> Memory
@@ -185,7 +186,7 @@ makeprog (c:cs) = let line = words c
 		  in (case i of
 			"Load" -> Load (readval (line !! 1)) (line !! 2)
 			"Write" -> Write (line !! 1) (read (line !! 2))
-			"Add" -> Add (readval (line !! 1)) (readval (line !! 2)) (line !! 3)	
+			"Add" -> Add (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
 			"Sub" -> Sub (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
 			"Mul" -> Mul (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
 			"Div" -> Div (readval (line !! 1)) (readval (line !! 2)) (line !! 3)
@@ -249,6 +250,6 @@ replace labels line = let inst = (head . words $ line)
 					(Just n) -> "JmpIf " ++ show n ++ "\n"
 					Nothing -> error "Nonexistent label: " ++ go
 			a -> line ++ "\n"
-  
+
 strip :: String -> String
 strip s = if last (head . words $ s) == ':' then strip $ tail s else s
