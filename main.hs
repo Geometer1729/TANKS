@@ -9,14 +9,14 @@ type Team = Int
 
 colormap :: Team -> Color
 colormap 0 = blue
-colormap 1 = red 
+colormap 1 = red
 
 data Tank = Tank{
 	pos :: Point,
 	angle :: Float,
 	team :: Team,
 	memory :: Runtime
-} | DeadTank 
+} | DeadTank
 
 data Bullet = Bullet {
 	bpos :: Point,
@@ -51,23 +51,23 @@ drawBullet :: Bullet -> Picture
 drawBullet (Bullet (x,y) _) = translate x y (circle 1)
 
 handle :: Event -> World -> IO World
-handle _ w = return w 	
+handle _ w = return w
 
 step :: Bool -> Float -> World -> IO World
-step debug _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs} 
+step debug _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs}
 	where
 		sts = filter (notShot nbs) nts
 		nbs = (bulets w) ++ (map stepBulleter bs)
 		ts = tanks w :: [Tank]
-		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map 
-			(\t -> run (memory t) (team t == 1 && debug)) ts) ts :: [(Tank,HardInst)]
-		(nts,bs) = handleTanks is	
+		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map
+			(\t -> run (memory t)) ts) ts :: [(Tank,HardInst)]
+		(nts,bs) = handleTanks is
 
 bulletInMap :: Bullet -> Bool
 bulletInMap (Bullet (x,y) _) = (abs x < 1000) &&  (abs y < 1000)
 
 notShot :: [Bullet] -> Tank -> Bool
-notShot bs (Tank (xt,yt) _ _ _) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs] 
+notShot bs (Tank (xt,yt) _ _ _) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs]
 notShot _ DeadTank = False
 
 handleTanks :: [(Tank,HardInst)]-> ([Tank],[Bullet])
@@ -78,11 +78,11 @@ tankHelper :: HardInst -> (Tank,[(Tank,HardInst)],[Tank],[Bullet]) -> ([Tank],[B
 tankHelper i (t,[],ts,bs) = (nt:ts,nbs)
 	where
 		(nt,_,nbs) = tankDo i (t,[],ts,bs)
-tankHelper i (t,its,ts,bs) = tankHelper nni (nnt,tail its,nt:ts,nbs) 
+tankHelper i (t,its,ts,bs) = tankHelper nni (nnt,tail its,nt:ts,nbs)
 	where
 		(nt,nits,nbs) = tankDo i (t,its,ts,bs)
 		(nnt,nni) = head its
-		
+
 isDead:: Tank -> Bool
 isDead DeadTank = True
 isDead _ = False
@@ -93,7 +93,7 @@ tankDo (HAim a) (t,its,_,bs) = (t{angle=a},its,bs)
 tankDo (HScan a b) (t,its,ts,bs) = (t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},its,bs)
 	where
 		(ra,rb) = scanWorld t a b ts
-tankDo Die (t,its,_,bs) = (DeadTank,its,bs)	
+tankDo Die (t,its,_,bs) = (DeadTank,its,bs)
 tankDo HMove (t,its,_,bs) = (t{pos = (x,y)} ,its,bs)
 	where
 		(tx,ty) = pos t
@@ -104,8 +104,8 @@ tankDo HGPS (t,its,ts,bs) = (t{memory = nm},its,bs)
 	where
 		(tx,ty) =  pos t
 		nm = setRegister (setRegister (memory t) (V $ round tx) "a") (V $ round ty) "b"
-tankDo HGyro (t,its,ts,bs) = (t{memory = nm},its,bs) 
-	where 
+tankDo HGyro (t,its,ts,bs) = (t{memory = nm},its,bs)
+	where
 		ta = angle t
 		nm = setRegister (memory t) (V $ round ta) "a"
 
@@ -114,17 +114,17 @@ shoots t1 t2 = abs ((angle t1) - (getAngle t1 t2)) < (pi / 512)
 
 getAngle :: Tank -> Tank -> Float
 getAngle t1 t2 = ca
-	where	
+	where
 		(x1,y1) = pos t1
 		(x2,y2) = pos t2
-		ca = (if y2 > y1 then 0 else pi)  + atan ((y2-y1)/(x2-x1)) 
+		ca = (if y2 > y1 then 0 else pi)  + atan ((y2-y1)/(x2-x1))
 
 scanWorld :: Tank -> Float -> Float -> [Tank] -> (Int,Int)
 scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
 	where
 		sTs =  [ t2 | t2 <- ts , (a < (getAngle t1 t2)) && ((getAngle t1 t2) < b) ]
 
-main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step 
+main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step
 	args <- getArgs
 	let debug = (head args) == "-v"
 	let nargs = (if debug then tail else id ) args
@@ -155,8 +155,8 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 			size = 1000
 			}
 	let newtam = exec tam1
-	--print newtam	
-	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug) 
+	--print newtam
+	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug)
 
 objectToPicture :: Object -> Picture
 objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
@@ -187,5 +187,3 @@ obShift p = mapPts (ptShift p)
 
 ptShift::Point->Point->Point
 ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
-
-
