@@ -2,6 +2,7 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Data.Word
 import Debug.Trace
+import Data.Bits (xor)
 import Assembly
 import System.Environment
 
@@ -33,14 +34,7 @@ tau = pi*2
 
 world = World [] [] 1000
 
-render :: World -> IO Picture
-render w = return $ translate (-size w/2) (-size w/2) $ Pictures $ (map drawTank (tanks w)) ++ (map drawBullet (bulets w))
-
-stepBullet :: Bullet -> Bullet
-stepBullet (Bullet (x,y) r) = Bullet (x+5*(cos r),y+5*(sin r)) r
-
-stepBulleter :: Bullet -> Bullet
-stepBulleter (Bullet (x,y) r) = Bullet (x+30*(cos r),y+30*(sin r)) r
+--rendering
 
 drawTank :: Tank -> Picture
 drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate x y (rotate ((-180/pi)*((angle t)-pi/2)) (objectToPicture (tankGun green black)))]
@@ -50,18 +44,64 @@ drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate
 drawBullet :: Bullet -> Picture
 drawBullet (Bullet (x,y) _) = translate x y (circle 1)
 
-handle :: Event -> World -> IO World
-handle _ w = return w
+render :: World -> IO Picture
+render w = return $ translate (-size w/2) (-size w/2) $ Pictures $ (map drawTank (tanks w)) ++ (map drawBullet (bulets w))
+
+objectToPicture :: Object -> Picture
+objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
+
+drawShape:: Shape -> Picture
+drawShape (Pol p) = Polygon p
+drawShape (Circ ((x,y),r)) = translate x y (circleSolid r)
+
+type Object = [Part]
+type Part = (Shape,Color)
+data Shape = Pol Polygon | Circ Circle deriving Show
+type Polygon = [Point]
+type Circle = (Point,Float)
+
+tankBody :: Color -> Object
+tankBody c = obShift (-10,-10) [(Pol [(0,0),(0,20),(4,20),(4,0)],black),(Pol [(4,2),(4,18),(16,18),(16,2)],c),(Pol [(16,0),(16,20),(20,20),(20,0)],black)]
+
+tankGun :: Color -> Color -> Object
+tankGun c0 c1= obShift (-10,-10) [(Circ ((10,10),4),c0),(Pol [(8,8),(8,20),(12,20),(12,8)],c1)]
+
+mapPts::(Point -> Point) -> Object -> Object
+mapPts _ [] = []
+mapPts f (((Pol pts),c):o)  = (Pol (map f pts),c) : mapPts f o
+mapPts f ((Circ(pt,r),c):o) = (Circ (f pt,r),c) : mapPts f o
+
+obShift::Point -> Object -> Object
+obShift p = mapPts (ptShift p)
+
+ptShift::Point->Point->Point
+ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
+
+--steping world
 
 step :: Bool -> Float -> World -> IO World
-step debug _ w = return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs}
-	where
-		sts = filter (notShot nbs) nts
-		nbs = (bulets w) ++ (map stepBulleter bs)
-		ts = tanks w :: [Tank]
-		is = zipWith (\(m,i) t -> (t{memory=m},i)) (map
-			(\t -> run (memory t)) ts) ts :: [(Tank,HardInst)]
-		(nts,bs) = handleTanks is
+step debug _ w = do 
+	rs <- mapM (\t -> let mt = memory t in 
+		if debug && team t == 1 then runDebug mt else return (run mt) ) (tanks w)
+	let is = map (\((nm,i),t) -> (t{memory=nm},i)) (zip rs (tanks w))
+	let ts = tanks w	
+	let wr = map (\(t,i) -> tankDo i t ts) is :: [(Maybe Tank,Maybe Bullet)]
+	let nts = justice . (map fst) $ wr :: [Tank]
+	let bs = justice . (map snd) $ wr ::[Bullet]
+	let nbs = (bulets w) ++ (map stepBulleter bs)
+	let sts = filter (notShot nbs) nts
+	return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs}
+
+justice :: [Maybe a] -> [a]
+justice ((Just x):xs) = x:(justice xs)
+justice ((Nothing):xs) = justice xs
+justice [] = []
+
+stepBullet :: Bullet -> Bullet
+stepBullet (Bullet (x,y) r) = Bullet (x+5*(cos r),y+5*(sin r)) r
+
+stepBulleter :: Bullet -> Bullet
+stepBulleter (Bullet (x,y) r) = Bullet (x+30*(cos r),y+30*(sin r)) r
 
 bulletInMap :: Bullet -> Bool
 bulletInMap (Bullet (x,y) _) = (abs x < 1000) &&  (abs y < 1000)
@@ -70,47 +110,36 @@ notShot :: [Bullet] -> Tank -> Bool
 notShot bs (Tank (xt,yt) _ _ _) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs]
 notShot _ DeadTank = False
 
-handleTanks :: [(Tank,HardInst)]-> ([Tank],[Bullet])
-handleTanks [] = ([],[])
-handleTanks ((t,i):its) = tankHelper i (t,its,[],[])
-
-tankHelper :: HardInst -> (Tank,[(Tank,HardInst)],[Tank],[Bullet]) -> ([Tank],[Bullet])
-tankHelper i (t,[],ts,bs) = (nt:ts,nbs)
-	where
-		(nt,_,nbs) = tankDo i (t,[],ts,bs)
-tankHelper i (t,its,ts,bs) = tankHelper nni (nnt,tail its,nt:ts,nbs)
-	where
-		(nt,nits,nbs) = tankDo i (t,its,ts,bs)
-		(nnt,nni) = head its
-
-isDead:: Tank -> Bool
-isDead DeadTank = True
-isDead _ = False
-
-tankDo :: HardInst -> (Tank,[(Tank,HardInst)],[Tank],[Bullet]) -> (Tank,[(Tank,HardInst)],[Bullet])
-tankDo Sit (t,its,_,bs) = (t,its,bs)
-tankDo (HAim a) (t,its,_,bs) = (t{angle=a},its,bs)
-tankDo (HScan a b) (t,its,ts,bs) = (t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},its,bs)
+tankDo :: HardInst -> Tank -> [Tank] -> (Maybe Tank,Maybe Bullet) 
+tankDo Sit t _  = (Just t,Nothing)
+tankDo (HAim a) t _ = (Just $ t{angle=a},Nothing)
+tankDo (HScan a b) t ts = (Just $ t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},Nothing)
 	where
 		(ra,rb) = scanWorld t a b ts
-tankDo Die (t,its,_,bs) = (DeadTank,its,bs)
-tankDo HMove (t,its,_,bs) = (t{pos = (x,y)} ,its,bs)
+tankDo Die _ _ = (Nothing,Nothing)
+tankDo HMove t _ = (Just t{pos = (x,y)} ,Nothing)
 	where
 		(tx,ty) = pos t
 		ta = angle t
 		(x,y) = (tx + (cos ta),ty + (sin ta))
-tankDo Shoot (t,its,ts,bs) = (t,its, Bullet (pos t) (angle t):bs)
-tankDo HGPS (t,its,ts,bs) = (t{memory = nm},its,bs)
+tankDo Shoot t _ = (Just t, Just $ Bullet (pos t) (angle t))
+tankDo HGPS t _ = (Just t{memory = nm},Nothing)
 	where
 		(tx,ty) =  pos t
 		nm = setRegister (setRegister (memory t) (V $ round tx) "a") (V $ round ty) "b"
-tankDo HGyro (t,its,ts,bs) = (t{memory = nm},its,bs)
+tankDo HGyro t _ = (Just t{memory = nm},Nothing)
 	where
 		ta = angle t
 		nm = setRegister (memory t) (V $ round ta) "a"
 
-shoots :: Tank -> Tank -> Bool
-shoots t1 t2 = abs ((angle t1) - (getAngle t1 t2)) < (pi / 512)
+scanWorld :: Tank -> Float -> Float -> [Tank] -> (Int,Int)
+scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
+	where
+		sTs =  [ t2 | t2 <- ts , angleValid a b (getAngle t1 t2)  ]
+
+angleValid :: Float -> Float -> Float -> Bool
+angleValid a b t = xor (a < t) (t < b)
+
 
 getAngle :: Tank -> Tank -> Float
 getAngle t1 t2 = ca
@@ -119,11 +148,11 @@ getAngle t1 t2 = ca
 		(x2,y2) = pos t2
 		ca = (if y2 > y1 then 0 else pi)  + atan ((y2-y1)/(x2-x1))
 
-scanWorld :: Tank -> Float -> Float -> [Tank] -> (Int,Int)
-scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
-	where
-		sTs =  [ t2 | t2 <- ts , (a < (getAngle t1 t2)) && ((getAngle t1 t2) < b) ]
+--if we ever add controll fuck with this part
+handle :: Event -> World -> IO World
+handle _ w = return w
 
+--main
 main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step
 	args <- getArgs
 	let debug = (head args) == "-v"
@@ -158,32 +187,3 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 	--print newtam
 	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug)
 
-objectToPicture :: Object -> Picture
-objectToPicture o = Pictures $ map (\ (xs,c) -> color c $ drawShape xs) o
-
-drawShape:: Shape -> Picture
-drawShape (Pol p) = Polygon p
-drawShape (Circ ((x,y),r)) = translate x y (circleSolid r)
-
-type Object = [Part]
-type Part = (Shape,Color)
-data Shape = Pol Polygon | Circ Circle deriving Show
-type Polygon = [Point]
-type Circle = (Point,Float)
-
-tankBody :: Color -> Object
-tankBody c = obShift (-10,-10) [(Pol [(0,0),(0,20),(4,20),(4,0)],black),(Pol [(4,2),(4,18),(16,18),(16,2)],c),(Pol [(16,0),(16,20),(20,20),(20,0)],black)]
-
-tankGun :: Color -> Color -> Object
-tankGun c0 c1= obShift (-10,-10) [(Circ ((10,10),4),c0),(Pol [(8,8),(8,20),(12,20),(12,8)],c1)]
-
-mapPts::(Point -> Point) -> Object -> Object
-mapPts _ [] = []
-mapPts f (((Pol pts),c):o)  = (Pol (map f pts),c) : mapPts f o
-mapPts f ((Circ(pt,r),c):o) = (Circ (f pt,r),c) : mapPts f o
-
-obShift::Point -> Object -> Object
-obShift p = mapPts (ptShift p)
-
-ptShift::Point->Point->Point
-ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
