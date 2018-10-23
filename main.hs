@@ -5,6 +5,7 @@ import Debug.Trace
 import Data.Bits (xor)
 import Assembly
 import System.Environment
+import System.Random
 
 type Team = Int
 
@@ -17,7 +18,7 @@ data Tank = Tank{
 	angle :: Float,
 	team :: Team,
 	memory :: Runtime
-} | DeadTank
+} 
 
 data Bullet = Bullet {
 	bpos :: Point,
@@ -153,37 +154,37 @@ handle :: Event -> World -> IO World
 handle _ w = return w
 
 --main
+parseArgs :: [String] -> [String] -> ([String],[Bool])
+parseArgs [] ss = (ss,[])
+parseArgs args (f:fs) = fmap (flag:) $ parseArgs nargs fs
+	where
+		nargs = filter (\a -> a /= f) args
+		flag = and $ map (\a -> a /= f) args
+
 main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step
 	args <- getArgs
-	let debug = (head args) == "-v"
-	let nargs = (if debug then tail else id ) args
-	code1 <-  readFile $ head nargs
-	code2 <-  readFile $ (head . tail) nargs
-	let edit = labelMacro code2;
-	putStrLn code2
+	let (nargs,[debug]) = parseArgs ["-v"] args  
+	code0 <-  readFile $ head nargs
+	code1 <-  readFile $ (head . tail) nargs
+	let edit = labelMacro code1;
+	putStrLn code1
 	putStrLn edit
+	let tam0 = makeTAM $ preproc code0
 	let tam1 = makeTAM $ preproc code1
-	let tam2 = makeTAM $ preproc code2
+	print tam0
 	print tam1
-	print tam2
-	let tank1 = Tank {
-			pos = (500,300),
-			angle = 1.57,
-			team = 0,
-			memory = tam1
-		   }
-	let tank2 = Tank {
-		pos = (600,700),
-		angle = (3/4)*tau,
-		team = 1,
-		memory = tam2
-	}
+	g <- getStdGen
+	let xs = randomRs (0,1000) g :: [Int]
+	let ys = randomRs (0,1000) g :: [Int]
+	let pts = zip xs ys
+	let t0ps = take 10 pts
+	let t1ps = (take 10) $ (drop 10) pts
+	let team0 = map (\p ->  Tank { pos = (500,300), angle = 0, team = 0, memory = tam0 } ) t0ps
+	let team1 = map (\p ->  Tank { pos = (500,300), angle = 0, team = 1, memory = tam1 } ) t0ps
 	let newworld = World {
-			tanks = [tank1,tank2],
+			tanks = team0 ++ team1,
 			bulets = [],
 			size = 1000
 			}
-	let newtam = exec tam1
-	--print newtam
 	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug)
 
