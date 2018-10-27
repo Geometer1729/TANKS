@@ -15,9 +15,11 @@ colormap 1 = red
 
 data Tank = Tank{
 	pos :: Point,
+	aim :: Float,
 	angle :: Float,
 	team :: Team,
-	memory :: Runtime
+	memory :: Runtime,
+	temp :: Int
 } 
 
 data Bullet = Bullet {
@@ -28,7 +30,8 @@ data Bullet = Bullet {
 data World = World {
 	tanks :: [Tank] ,
 	bulets :: [Bullet],
-	size :: Float
+	size :: Float,
+	obs :: [(Point,Float)]
 }
 
 tau = pi*2
@@ -38,12 +41,13 @@ world = World [] [] 1000
 --rendering
 
 drawTank :: Tank -> Picture
-drawTank t = Pictures $ [translate x y (objectToPicture (tankBody c)), translate x y (rotate ((-180/pi)*((angle t)-pi/2)) (objectToPicture (tankGun green black)))]
+drawTank t = Pictures $ [((translate x y) . (rotate )((-180/pi)*((angle t)-pi/2))) $ (objectToPicture (tankBody c)), translate x y (rotate ((-180/pi)*((aim t)-pi/2)) (objectToPicture (tankGun green black)))]
 	where
 		(x,y) = pos t
 		c = colormap (team t)
+
 drawBullet :: Bullet -> Picture
-drawBullet (Bullet (x,y) _) = translate x y (circle 1)
+drawBullet (Bullet (x,y) _) = translate x y (circleSolid 1.5)
 
 render :: World -> IO Picture
 render w = return $ translate (-size w/2) (-size w/2) $ Pictures $ (map drawTank (tanks w)) ++ (map drawBullet (bulets w))
@@ -108,12 +112,12 @@ bulletInMap :: Bullet -> Bool
 bulletInMap (Bullet (x,y) _) = (abs x < 1000) &&  (abs y < 1000)
 
 notShot :: [Bullet] -> Tank -> Bool
-notShot bs (Tank (xt,yt) _ _ _) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs]
-notShot _ DeadTank = False
+notShot bs (Tank{pos=(xt,yt)}) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs]
 
 tankDo :: HardInst -> Tank -> [Tank] -> (Maybe Tank,Maybe Bullet) 
 tankDo Sit t _  = (Just t,Nothing)
-tankDo (HAim a) t _ = (Just $ t{angle=a},Nothing)
+tankDo (HAim a) t _ = (Just $ t{aim=a},Nothing)
+tankDo (HTurn a) t _ = (Just $ t{angle=a},Nothing)
 tankDo (HScan a b) t ts = (Just $ t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},Nothing)
 	where
 		(ra,rb) = scanWorld t a b ts
@@ -123,8 +127,8 @@ tankDo HMove t _ = (Just t{pos = (x,y)} ,Nothing)
 		(tx,ty) = pos t
 		ta = angle t
 		(x,y) = (tx + (cos ta),ty + (sin ta))
-tankDo Shoot t _ = (Just t, Just $ Bullet (pos t) (angle t))
-tankDo HGPS t _ = (Just t{memory = nm},Nothing)
+tankDo Shoot t _ = (Just t, Just $ Bullet (pos t) (aim t))
+tankDo HGPS t _ = (Just t{memory = nm,temp = temp t + 4},Nothing)
 	where
 		(tx,ty) =  pos t
 		nm = setRegister (setRegister (memory t) (V $ round tx) "a") (V $ round ty) "b"
@@ -133,13 +137,15 @@ tankDo HGyro t _ = (Just t{memory = nm},Nothing)
 		ta = angle t
 		nm = setRegister (memory t) (V $ round ta) "a"
 
+
+
 scanWorld :: Tank -> Float -> Float -> [Tank] -> (Int,Int)
 scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
 	where
 		sTs =  [ t2 | t2 <- ts , angleValid a b (getAngle t1 t2)  ]
 
 angleValid :: Float -> Float -> Float -> Bool
-angleValid a b t = xor (a < t) (t < b)
+angleValid a b t = not $ xor (a < t) (t < b)
 
 
 getAngle :: Tank -> Tank -> Float
@@ -155,7 +161,7 @@ handle _ w = return w
 
 --main
 parseArgs :: [String] -> [String] -> ([String],[Bool])
-parseArgs [] ss = (ss,[])
+parseArgs ss  [] = (ss,[])
 parseArgs args (f:fs) = fmap (flag:) $ parseArgs nargs fs
 	where
 		nargs = filter (\a -> a /= f) args
@@ -163,7 +169,7 @@ parseArgs args (f:fs) = fmap (flag:) $ parseArgs nargs fs
 
 main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render handle step
 	args <- getArgs
-	let (nargs,[debug]) = parseArgs ["-v"] args  
+	let (nargs,[debug]) = parseArgs args ["-v"] 
 	code0 <-  readFile $ head nargs
 	code1 <-  readFile $ (head . tail) nargs
 	let edit = labelMacro code1;
@@ -174,17 +180,19 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 	print tam0
 	print tam1
 	g <- getStdGen
-	let xs = randomRs (0,1000) g :: [Int]
-	let ys = randomRs (0,1000) g :: [Int]
+	let (g1,g2) = split g
+	let xs = randomRs (0,1000) g1 :: [Float]
+	let ys = randomRs (0,1000) g2 :: [Float]
 	let pts = zip xs ys
 	let t0ps = take 10 pts
 	let t1ps = (take 10) $ (drop 10) pts
-	let team0 = map (\p ->  Tank { pos = (500,300), angle = 0, team = 0, memory = tam0 } ) t0ps
-	let team1 = map (\p ->  Tank { pos = (500,300), angle = 0, team = 1, memory = tam1 } ) t0ps
+	let team0 = map (\p -> Tank {pos = p,aim = 0,angle = 0,team = 0,memory = tam0 ,temp = 0}) t0ps
+	let team1 = map (\p -> Tank {pos = p,aim = 0,angle = 0,team = 1,memory = tam1 ,temp = 0}) t1ps
 	let newworld = World {
 			tanks = team0 ++ team1,
 			bulets = [],
-			size = 1000
+			size = 1000,
+			obs = []
 			}
 	playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 newworld render handle (step debug)
 
