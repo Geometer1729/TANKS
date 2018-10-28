@@ -87,7 +87,7 @@ ptShift (x1,y1) (x2,y2) = (x1+x2,y1+y2)
 step :: Bool -> Float -> World -> IO World
 step debug _ w = do 
 	rs <- mapM (\t -> let mt = memory t in 
-		if debug && team t == 1 then runDebug mt else return (run mt) ) (tanks w)
+		if debug && team t == 0 then runDebug mt else return (run mt) ) (tanks w)
 	let is = map (\((nm,i),t) -> (t{memory=nm},i)) (zip rs (tanks w))
 	let ts = tanks w	
 	let wr = map (\(t,i) -> tankDo i t ts) is :: [(Maybe Tank,Maybe Bullet)]
@@ -95,7 +95,11 @@ step debug _ w = do
 	let bs = justice . (map snd) $ wr ::[Bullet]
 	let nbs = (bulets w) ++ (map stepBulleter bs)
 	let sts = filter (notShot nbs) nts
-	return w{tanks = sts, bulets = filter bulletInMap $ map stepBullet $ nbs}
+	let tats = justice $ map tempHandle sts
+	return w{tanks = tats, bulets = filter bulletInMap $ map stepBullet $ nbs}
+
+tempHandle :: Tank -> Maybe Tank
+tempHandle t = traceShow (temp t) $ if temp t < 300 then Just t{temp= max 0 $ temp t} else Nothing
 
 justice :: [Maybe a] -> [a]
 justice ((Just x):xs) = x:(justice xs)
@@ -115,37 +119,43 @@ notShot :: [Bullet] -> Tank -> Bool
 notShot bs (Tank{pos=(xt,yt)}) = not $ or [ abs (xb - xt) < 10 && abs (yb - yt) < 10 | (Bullet (xb,yb) _)  <- bs]
 
 tankDo :: HardInst -> Tank -> [Tank] -> (Maybe Tank,Maybe Bullet) 
-tankDo Sit t _  = (Just t,Nothing)
-tankDo (HAim a) t _ = (Just $ t{aim=a},Nothing)
-tankDo (HTurn a) t _ = (Just $ t{angle=a},Nothing)
-tankDo (HScan a b) t ts = (Just $ t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b"},Nothing)
+tankDo Sit t _  = (Just t{temp=temp t - defaultCool},Nothing)
+tankDo (HAim a) t _ = (Just $ t{aim=a,temp = temp t -defaultCool},Nothing)
+tankDo (HTurn a) t _ = (Just $ t{angle=a,temp=temp t-defaultCool},Nothing)
+tankDo (HScan a b) t ts = (Just $ t{memory = setRegister (setRegister (memory t) (V ra) "a") (V rb) "b",temp=temp t-4},Nothing)
 	where
 		(ra,rb) = scanWorld t a b ts
 tankDo Die _ _ = (Nothing,Nothing)
-tankDo HMove t _ = (Just t{pos = (x,y)} ,Nothing)
+tankDo HMove t _ = (Just t{pos = (x,y),temp=temp t-moveCool} ,Nothing)
 	where
 		(tx,ty) = pos t
 		ta = angle t
 		(x,y) = (tx + (cos ta),ty + (sin ta))
-tankDo Shoot t _ = (Just t, Just $ Bullet (pos t) (aim t))
-tankDo HGPS t _ = (Just t{memory = nm,temp = temp t + 4},Nothing)
+tankDo Shoot t _ = (Just t{temp=temp t + shootHeat}, Just $ Bullet (pos t) (aim t))
+tankDo HGPS t _ = (Just t{memory = nm,temp = temp t - defaultCool},Nothing)
 	where
 		(tx,ty) =  pos t
-		nm = setRegister (setRegister (memory t) (V $ round tx) "a") (V $ round ty) "b"
-tankDo HGyro t _ = (Just t{memory = nm},Nothing)
+		(rtx,rty) = (div (round tx) 4,div (round ty) 4) :: (Int,Int)
+		nm = setRegister (setRegister (memory t) (V rtx) "a") (V rty) "b"
+tankDo HGyro t _ = (Just t{memory = nm,temp=temp t -defaultCool},Nothing)
 	where
 		ta = angle t
 		nm = setRegister (memory t) (V $ round ta) "a"
 
+defaultCool = 2 :: Int
+moveCool = 4 :: Int
+shootHeat = 24 :: Int
 
 
 scanWorld :: Tank -> Float -> Float -> [Tank] -> (Int,Int)
-scanWorld t1 a b ts = (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
+scanWorld t1 a b ts = traceShowId $ (length $ filter (\t -> team t == team t1) sTs, length $ filter (\t -> team t /= team t1) sTs)
 	where
 		sTs =  [ t2 | t2 <- ts , angleValid a b (getAngle t1 t2)  ]
 
 angleValid :: Float -> Float -> Float -> Bool
-angleValid a b t = not $ xor (a < t) (t < b)
+angleValid a b t = traceShow (a,b,t,ret) ret
+	where
+		ret = or $ (map and) [[a<t,t<b],[t<b,b<a],[b<a,a<t]] :: Bool
 
 
 getAngle :: Tank -> Tank -> Float
@@ -186,10 +196,12 @@ main = do --playIO (InWindow "TANKS!" (1000,1000) (40,40)) white 30 world render
 	let pts = zip xs ys
 	let t0ps = take 10 pts
 	let t1ps = (take 10) $ (drop 10) pts
-	let team0 = map (\p -> Tank {pos = p,aim = 0,angle = 0,team = 0,memory = tam0 ,temp = 0}) t0ps
-	let team1 = map (\p -> Tank {pos = p,aim = 0,angle = 0,team = 1,memory = tam1 ,temp = 0}) t1ps
+	let team0 = map (\p->Tank {pos=p,aim=0,angle=0,team=0,memory=tam0,temp=0}) t0ps
+	let team1 = map (\p->Tank {pos=p,aim=0,angle=0,team=1,memory=tam1,temp=0}) t1ps
+	let test0 = Tank {pos=(500,500),aim=0,angle=0,team=0,memory=tam0,temp=0}
+	let test1 = Tank {pos=(600,700),aim=0,angle=0,team=1,memory=tam1,temp=0}
 	let newworld = World {
-			tanks = team0 ++ team1,
+			tanks = team0 ++ team1, -- [test0,test1]
 			bulets = [],
 			size = 1000,
 			obs = []

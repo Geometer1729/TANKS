@@ -33,6 +33,9 @@ val (M i) tam = deref (mem tam) i
 val X tam = let (_,_,_,x) = regs tam
             in deref (mem tam) x
 val (V v) _ = v
+val a b = error $ show (a,b)
+
+
 
 data HardInst = Sit | Shoot | HScan Float Float | HAim Float | HTurn Float | HMove | HGyro | HGPS | Die
 
