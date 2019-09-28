@@ -1,0 +1,37 @@
+start: Load 128 b
+scan: Write a 0
+Write b 1
+TEQ a b
+JmpIf shoot
+Scan
+TEQ b 0
+JmpIf none
+Load (0) a
+Load (1) b
+Sub b a b
+Div b 2 b
+Add a b b
+Jmp scan
+none: Load (0) b
+Load (1) a
+Sub a b b
+Div b 2 b
+Add a b b
+Jmp scan
+shoot: Aim
+Fire
+Turn
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Load 0 a
+Jmp start

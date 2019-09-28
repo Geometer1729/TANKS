@@ -1,0 +1,11 @@
+loop1: Load (0) a
+loop2: Add  a 1 b
+Sub a 1 a
+Write b 0
+Scan
+TEQ b 0
+JmpIf loop1
+Load (0) a
+Aim 
+Fire
+Jmp loop2

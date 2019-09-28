@@ -1,0 +1,38 @@
+loop: Load (0) a
+Add a 10 b
+Write b (0)
+Scan
+TLT a b
+JmpIf loop
+Load (0) a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Aim
+Fire
+Add a 1 a
+Jmp loop

@@ -1,0 +1,41 @@
+loop: Load 0 a
+Turn
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Load 64 a
+Turn
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Load 128 a
+Turn
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Load 192 a
+Turn
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Move
+Jmp loop
